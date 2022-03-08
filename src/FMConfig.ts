@@ -1,0 +1,273 @@
+import YAML from 'js-yaml'
+
+export type Factory = {
+	/** name is used as identifier, e.g. when referred to in upgrade recipes */
+	name: string
+	recipes: Map<string, Recipe>
+} & (
+	| { type: 'FCC'; setupCost: ItemCounts }
+	| { type: 'FCCUPGRADE'; upgradeRecipe: Recipe }
+)
+
+export type Recipe = {
+	/** e.g. `upgrade_to_adv_ore_smelter` */
+	id: string
+	/** e.g. `Upgrade to Advanced Ore Smelter` */
+	name: string
+	/** where this recipe can be run */
+	factories: Factory[]
+	/** `production_time` in config.yml */
+	runSec: number
+	/** `fuel_consumption_intervall` in config.yml */
+	fuelConsumeSec: number
+} & (
+	| { type: 'PRODUCTION'; input: ItemCounts; output: ItemCounts }
+	| { type: 'UPGRADE'; input: ItemCounts; upgradesToFactory: Factory }
+	| { type: 'REPAIR'; input: ItemCounts; health_gained: number }
+	| { type: 'COMPACT' | 'DECOMPACT'; input: ItemCounts; compact_lore: string }
+	// | { type: 'RANDOM'; input: ItemCounts; outputs: { chance: number; items: ItemCounts }[] }
+	// | { type: 'WORDBANK' }
+	// | { type: 'PRINTINGPLATE'; input: ItemCounts; output: ItemCounts }
+	// | { type: 'PRINTINGPLATEJSON'; input: ItemCounts; output: ItemCounts }
+	// | { type: 'PRINTBOOK'; input: ItemCounts; printingplate: ItemCounts }
+	// | { type: 'PRINTNOTE'; input: ItemCounts; printingplate: ItemCounts }
+	| { type: 'TODO' }
+)
+
+export type UpgradeRecipe = Recipe & { type: 'UPGRADE' }
+
+export type ItemCounts = Map<string, number>
+
+export class Item {
+	/** combination of material, customName, and lore */
+	id: string
+
+	madeInRecipes: Recipe[] = []
+	usedInRecipes: Recipe[] = []
+	usedInFactoryCreations: Factory[] = []
+
+	constructor(
+		readonly material: string,
+		readonly customName?: string,
+		readonly lore?: string[]
+	) {
+		this.id = [material, customName, ...(lore || [])].join('\n').trim()
+	}
+
+	get compacted() {
+		return this.lore?.length === 1 && this.lore[0] === 'Compacted Item'
+	}
+
+	decompactedCount(count: number) {
+		// TODO smaller stack sizes for tools, potions, etc.
+		return this.compacted ? count * 64 : count
+	}
+}
+
+/**
+ * - convenient: replaces identifiers with instances, adds bidirectional lookups
+ * - safe: detects unexpected values
+ */
+export class FMConfig {
+	/** by id, e.g. "upgrade_to_adv_ore_smelter" */
+	recipes: NodeJS.Dict<Recipe> = {}
+	/** by name, e.g. "Advanced Ore Smelter" */
+	factories: NodeJS.Dict<Factory> = {}
+	/** by id, e.g. "IRON_INGOT" */
+	items: NodeJS.Dict<Item> = {}
+
+	defaultFuelConsumeSec: number
+
+	getItemOrCreate(itemYaml: any): Item {
+		let item = parseItem(itemYaml)
+		return getOrSet(this.items, item.id, item)
+	}
+
+	parseErrors: { err: unknown; msg: string; context: any }[] = []
+
+	handleParseError(err: unknown, msg: string, context: any) {
+		console.error(msg, context, err)
+		this.parseErrors.push({ err, msg, context })
+	}
+
+	constructor(yamlText: string) {
+		const yaml = YAML.load(yamlText) as any
+
+		this.defaultFuelConsumeSec = parseDuration(
+			yaml.default_fuel_consumption_intervall
+		)
+
+		/** by factory name */
+		const upgradeRecipes: NodeJS.Dict<UpgradeRecipe> = {}
+
+		for (const [recipeId, recipeYaml] of Object.entries(yaml.recipes) as any) {
+			try {
+				const recipe = parseRecipe(recipeYaml, recipeId, this)
+				if (!recipe) continue
+				this.recipes[recipeId] = recipe
+				if ('input' in recipe) {
+					for (const itemId in recipe.input) {
+						this.items[itemId]!.usedInRecipes.push(recipe)
+					}
+				}
+				if ('output' in recipe) {
+					for (const itemId in recipe.output) {
+						this.items[itemId]!.madeInRecipes.push(recipe)
+					}
+				}
+				if (recipe.type === 'UPGRADE') {
+					upgradeRecipes[checkStr(recipeYaml.factory)] = recipe
+				}
+			} catch (err) {
+				this.handleParseError(err, `Failed parsing recipe`, recipeYaml)
+			}
+		}
+
+		for (const factoryYaml of Object.values(yaml.factories) as any) {
+			try {
+				const factory = parseFactory(factoryYaml, this)
+				this.factories[factory.name] = factory
+				for (const recipeId of factoryYaml.recipes) {
+					const recipe = this.recipes[checkStr(recipeId)]
+					if (!recipe) throw new Error(`No such recipe '${recipeId}'`)
+					recipe.factories.push(factory)
+				}
+
+				const upgradeRecipe = upgradeRecipes[factory.name]
+				if (upgradeRecipe) {
+					if (factory.type === 'FCCUPGRADE') {
+						factory.upgradeRecipe = upgradeRecipe
+						upgradeRecipe.upgradesToFactory = factory
+					} else
+						throw new Error(`Cannot upgrade to factory type '${factory.type}'`)
+				} else if (factory.type === 'FCCUPGRADE') {
+					throw new Error(`Found no upgrade recipe to this factory`)
+				}
+			} catch (err) {
+				this.handleParseError(err, `Failed parsing factory`, factoryYaml)
+			}
+		}
+	}
+}
+
+function parseFactory(yaml: any, fmConfig: FMConfig): Factory {
+	const type = checkStr(yaml.type)
+	const name = checkStr(yaml.name)
+	switch (type) {
+		case 'FCC':
+			const setupCost = parseItemCounts(yaml.setupcost, fmConfig)
+			const factory = { type, name, setupCost, recipes: new Map() }
+			for (const itemId in setupCost) {
+				fmConfig.items[itemId]!.usedInFactoryCreations.push(factory)
+			}
+			return factory
+		case 'FCCUPGRADE':
+			return { type, name, upgradeRecipe: null!, recipes: new Map() }
+		default:
+			throw new Error(`Unknown factory type '${type}'`)
+	}
+}
+
+function parseRecipe(
+	yaml: any,
+	recipeId: string,
+	fmConfig: FMConfig
+): Recipe | null {
+	const base = {
+		id: recipeId,
+		name: checkStr(yaml.name),
+		factories: [],
+		runSec: parseDuration(yaml.production_time),
+		fuelConsumeSec: yaml.fuel_consumption_intervall
+			? parseDuration(yaml.fuel_consumption_intervall)
+			: fmConfig.defaultFuelConsumeSec,
+	}
+	const input = () => parseItemCounts(yaml.input, fmConfig)
+	const type = checkStr(yaml.type)
+	switch (type) {
+		case 'PRODUCTION': {
+			const output = parseItemCounts(yaml.output, fmConfig)
+			return { ...base, type, input: input(), output }
+		}
+		case 'UPGRADE': {
+			return { ...base, type, input: input(), upgradesToFactory: null! }
+		}
+		case 'REPAIR': {
+			const health_gained = checkNum(yaml.health_gained)
+			return { ...base, type, input: input(), health_gained }
+		}
+		case 'COMPACT':
+		case 'DECOMPACT': {
+			const compact_lore = checkStr(yaml.compact_lore)
+			return { ...base, type, input: input(), compact_lore }
+		}
+		case 'RANDOM':
+		case 'WORDBANK':
+		case 'PRINTINGPLATE':
+		case 'PRINTINGPLATEJSON':
+		case 'PRINTBOOK':
+		case 'PRINTNOTE':
+			return { ...base, type: 'TODO' }
+		default:
+			throw new Error(`Unknown recipe type ${type}`)
+	}
+}
+
+function parseItemCounts(yaml: any, fmConfig: FMConfig): ItemCounts {
+	const items: ItemCounts = new Map()
+	if (yaml === null) return items
+	if (typeof yaml !== 'object') {
+		throw new Error(`Invalid items: '${yaml}'`)
+	}
+	for (const itemYaml of Object.values(yaml) as any) {
+		const amount = itemYaml.amount === undefined ? 1 : checkNum(itemYaml.amount)
+		const item = fmConfig.getItemOrCreate(itemYaml)
+		items.set(item.id, amount)
+	}
+	return items
+}
+
+function parseItem(yaml: any): Item {
+	if (typeof yaml !== 'object') {
+		throw new Error(`Invalid item: '${yaml}'`)
+	}
+	const material = checkStr(yaml.material).toLowerCase()
+	const customName = yaml.name ? checkStr(yaml.name) : undefined
+	const lore = yaml.lore
+	return new Item(material, customName, lore)
+}
+
+function parseDuration(s: string): number {
+	const match = /(\d+)(\S+)/.exec(s)
+	if (!match) {
+		throw new Error(`Invalid duration: '${s}'`)
+	}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const [_fullmatch, n, unit] = match
+	const units: { [u: string]: number } = { s: 1 }
+	return +n * units[unit]
+}
+
+function checkStr(s: unknown): string {
+	if (typeof s !== 'string') {
+		throw new Error(`Not a string: '${s}'`)
+	}
+	return s
+}
+
+function checkNum(n: unknown): number {
+	if (typeof n !== 'number') {
+		throw new Error(`Not a number: '${n}'`)
+	}
+	return n
+}
+
+function getOrSet<V>(map: NodeJS.Dict<V>, k: string, v: V): V {
+	const existing = map[k]
+	if (existing) return existing
+	map[k] = v
+	return v
+}
+
+/** hack around type system */
+export const oValues = <T>(o: NodeJS.Dict<T>): T[] => Object.values(o) as T[]
