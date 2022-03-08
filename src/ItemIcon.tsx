@@ -1,4 +1,4 @@
-import useSWRImmutable from 'swr/immutable'
+import { useEffect, useState } from 'react'
 import './ItemIcon.css'
 
 export function ItemIcon({ id }: { id: string }) {
@@ -13,35 +13,39 @@ export function ItemIcon({ id }: { id: string }) {
 	return <span className="ItemIcon" style={style} />
 }
 
+const iconsApiRoot = '//mc-icons.netlify.app'
+
 const mkImgIconStyle = (id: string): React.CSSProperties => ({
-	backgroundImage: `url("//mc-icons.netlify.app/icons/${id}.png")`,
+	backgroundImage: `url("${iconsApiRoot}/icons/${id}.png")`,
 	backgroundSize: 'contain',
 })
 
 const mkOffsetIconStyle = (offset: string): React.CSSProperties => ({
-	backgroundImage: 'url("//mc-icons.netlify.app/items_atlas.png")',
+	backgroundImage: `url("${iconsApiRoot}/items_atlas.png")`,
 	backgroundPosition: offset,
 })
 
+export type ItemInfos = {
+	[id: string]: { name: string; offset?: string }
+}
+
 export function useItemInfos() {
-	const { data: itemInfos } = useSWRImmutable<ItemInfos>(
-		'//mc-icons.netlify.app/item_infos.json',
-		fetchJsonLogErrors
-	)
+	const [itemInfos, setItemInfos] = useState<ItemInfos | undefined>(undefined)
+	useEffect(() => {
+		itemInfosP.then(setItemInfos)
+	}, [])
 	return itemInfos
 }
 
-const fetchJsonLogErrors = (url: string) =>
-	fetch(url)
+export const itemInfosP: Promise<ItemInfos> = fetchJsonLogErrors(
+	`${iconsApiRoot}/item_infos.json`
+)
+
+function fetchJsonLogErrors(url: string) {
+	return fetch(url)
 		.then((r) => r.json())
 		.catch((err) => {
 			console.error(err)
 			throw err
 		})
-
-export type ItemInfos = {
-	[id: string]: { name: string } & (
-		| { img: string; offset?: undefined }
-		| { img?: undefined; offset: string }
-	)
 }
