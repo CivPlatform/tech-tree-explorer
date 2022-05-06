@@ -23,6 +23,7 @@ const mkImgIconStyle = (id: string): React.CSSProperties => ({
 const mkOffsetIconStyle = (offset: string): React.CSSProperties => ({
 	backgroundImage: `url("${iconsApiRoot}/items_atlas.png")`,
 	backgroundPosition: offset,
+	imageRendering: 'pixelated',
 })
 
 export type ItemInfos = {
