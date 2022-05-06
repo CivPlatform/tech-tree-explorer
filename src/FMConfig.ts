@@ -51,7 +51,7 @@ export class Item {
 		readonly customName?: string,
 		readonly lore?: string[]
 	) {
-		this.id = [material, customName, ...(lore || [])].join('\n').trim()
+		this.id = [material, customName || '', ...(lore || [])].join('\n').trim()
 	}
 
 	get isCompacted() {
@@ -73,14 +73,14 @@ export class FMConfig {
 	recipes: NodeJS.Dict<Recipe> = {}
 	/** by name, e.g. "Advanced Ore Smelter" */
 	factories: NodeJS.Dict<Factory> = {}
-	/** by id, e.g. "IRON_INGOT" */
-	items: NodeJS.Dict<Item> = {}
+	/** by id, e.g. "SPONGE\nBastion\nThis bastion will ..." */
+	recipeItems: NodeJS.Dict<Item> = {}
 
 	defaultFuelConsumeSec: number
 
 	getItemOrCreate(itemYaml: any): Item {
-		let item = parseItem(itemYaml)
-		return getOrSet(this.items, item.id, item)
+		const item = parseItem(itemYaml)
+		return getOrSet(this.recipeItems, item.id, item)
 	}
 
 	parseErrors: { err: unknown; msg: string; context: any }[] = []
@@ -107,12 +107,12 @@ export class FMConfig {
 				this.recipes[recipeId] = recipe
 				if ('input' in recipe) {
 					for (const itemId in recipe.input) {
-						this.items[itemId]!.usedInRecipes.push(recipe)
+						this.recipeItems[itemId]!.usedInRecipes.push(recipe)
 					}
 				}
 				if ('output' in recipe) {
 					for (const itemId in recipe.output) {
-						this.items[itemId]!.madeInRecipes.push(recipe)
+						this.recipeItems[itemId]!.madeInRecipes.push(recipe)
 					}
 				}
 				if (recipe.type === 'UPGRADE') {
@@ -159,11 +159,12 @@ function parseFactory(yaml: any, fmConfig: FMConfig): Factory {
 			const setupCost = parseItemCounts(yaml.setupcost, fmConfig)
 			const factory = { type, name, setupCost, recipes: new Map() }
 			for (const itemId in setupCost) {
-				fmConfig.items[itemId]!.usedInFactoryCreations.push(factory)
+				fmConfig.recipeItems[itemId]!.usedInFactoryCreations.push(factory)
 			}
 			return factory
 		case 'FCCUPGRADE':
-			return { type, name, upgradeRecipe: null!, recipes: new Map() }
+			const upgradeRecipe = null! // will be set later
+			return { type, name, upgradeRecipe, recipes: new Map() }
 		default:
 			throw new Error(`Unknown factory type '${type}'`)
 	}
