@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import './ItemIcon.css'
 
+/** `id` is material */
 export function ItemIcon({ id }: { id: string }) {
 	const itemInfo = useItemInfos()?.[id]
 

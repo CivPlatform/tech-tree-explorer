@@ -1,0 +1,21 @@
+.Page {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+}
+
+.Page-Content {
+	flex: 1;
+	margin: auto;
+	max-width: 800px;
+}
+
+.TopBar {
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+.TopBar-Middle > * {
+	padding: 0 0.2em;
+}
