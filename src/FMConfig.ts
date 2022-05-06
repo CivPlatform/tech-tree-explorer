@@ -73,14 +73,20 @@ export class FMConfig {
 	recipes: NodeJS.Dict<Recipe> = {}
 	/** by name, e.g. "Advanced Ore Smelter" */
 	factories: NodeJS.Dict<Factory> = {}
-	/** by id, e.g. "SPONGE\nBastion\nThis bastion will ..." */
-	recipeItems: NodeJS.Dict<Item> = {}
+	/** by material then id; e.g. "sponge" > "sponge\nBastion\nThis bastion will ..." */
+	recipeItems: NodeJS.Dict<NodeJS.Dict<Item>> = {}
 
 	defaultFuelConsumeSec: number
 
-	getItemOrCreate(itemYaml: any): Item {
+	getItemOrCreateFromYaml(itemYaml: any): Item {
 		const item = parseItem(itemYaml)
-		return getOrSet(this.recipeItems, item.id, item)
+		const byMat = getOrSet(this.recipeItems, item.material, {})
+		return getOrSet(byMat, item.id, item)
+	}
+
+	getItemForId(id: string) {
+		const [material] = id.split('\n')
+		return this.recipeItems[material]?.[id]
 	}
 
 	parseErrors: { err: unknown; msg: string; context: any }[] = []
@@ -107,12 +113,12 @@ export class FMConfig {
 				this.recipes[recipeId] = recipe
 				if ('input' in recipe) {
 					for (const itemId in recipe.input) {
-						this.recipeItems[itemId]!.usedInRecipes.push(recipe)
+						this.getItemForId(itemId)!.usedInRecipes.push(recipe)
 					}
 				}
 				if ('output' in recipe) {
 					for (const itemId in recipe.output) {
-						this.recipeItems[itemId]!.madeInRecipes.push(recipe)
+						this.getItemForId(itemId)!.madeInRecipes.push(recipe)
 					}
 				}
 				if (recipe.type === 'UPGRADE') {
@@ -159,7 +165,7 @@ function parseFactory(yaml: any, fmConfig: FMConfig): Factory {
 			const setupCost = parseItemCounts(yaml.setupcost, fmConfig)
 			const factory = { type, name, setupCost, recipes: new Map() }
 			for (const itemId in setupCost) {
-				fmConfig.recipeItems[itemId]!.usedInFactoryCreations.push(factory)
+				fmConfig.getItemForId(itemId)!.usedInFactoryCreations.push(factory)
 			}
 			return factory
 		case 'FCCUPGRADE':
@@ -223,7 +229,7 @@ function parseItemCounts(yaml: any, fmConfig: FMConfig): ItemCounts {
 	}
 	for (const itemYaml of Object.values(yaml) as any) {
 		const amount = itemYaml.amount === undefined ? 1 : checkNum(itemYaml.amount)
-		const item = fmConfig.getItemOrCreate(itemYaml)
+		const item = fmConfig.getItemOrCreateFromYaml(itemYaml)
 		items.set(item.id, amount)
 	}
 	return items
@@ -270,6 +276,3 @@ function getOrSet<V>(map: NodeJS.Dict<V>, k: string, v: V): V {
 	map[k] = v
 	return v
 }
-
-/** hack around type system */
-export const oValues = <T>(o: NodeJS.Dict<T>): T[] => Object.values(o) as T[]
