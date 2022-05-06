@@ -54,13 +54,13 @@ export class Item {
 		this.id = [material, customName, ...(lore || [])].join('\n').trim()
 	}
 
-	get compacted() {
+	get isCompacted() {
 		return this.lore?.length === 1 && this.lore[0] === 'Compacted Item'
 	}
 
 	decompactedCount(count: number) {
 		// TODO smaller stack sizes for tools, potions, etc.
-		return this.compacted ? count * 64 : count
+		return this.isCompacted ? count * 64 : count
 	}
 }
 
@@ -131,6 +131,7 @@ export class FMConfig {
 					const recipe = this.recipes[checkStr(recipeId)]
 					if (!recipe) throw new Error(`No such recipe '${recipeId}'`)
 					recipe.factories.push(factory)
+					factory.recipes.set(recipe.id, recipe)
 				}
 
 				const upgradeRecipe = upgradeRecipes[factory.name]
