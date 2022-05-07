@@ -62,6 +62,10 @@ export class Item {
 		// TODO smaller stack sizes for tools, potions, etc.
 		return this.isCompacted ? count * 64 : count
 	}
+
+	static getMaterialFromId(id: string) {
+		return id.split('\n')[0]
+	}
 }
 
 /**
@@ -85,7 +89,7 @@ export class FMConfig {
 	}
 
 	getItemForId(id: string) {
-		const [material] = id.split('\n')
+		const material = Item.getMaterialFromId(id)
 		return this.recipeItems[material]?.[id]
 	}
 
