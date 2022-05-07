@@ -112,12 +112,12 @@ export class FMConfig {
 				if (!recipe) continue
 				this.recipes[recipeId] = recipe
 				if ('input' in recipe) {
-					for (const itemId in recipe.input) {
+					for (const itemId of Array.from(recipe.input.keys())) {
 						this.getItemForId(itemId)!.usedInRecipes.push(recipe)
 					}
 				}
 				if ('output' in recipe) {
-					for (const itemId in recipe.output) {
+					for (const itemId of Array.from(recipe.output.keys())) {
 						this.getItemForId(itemId)!.madeInRecipes.push(recipe)
 					}
 				}
@@ -164,7 +164,7 @@ function parseFactory(yaml: any, fmConfig: FMConfig): Factory {
 		case 'FCC':
 			const setupCost = parseItemCounts(yaml.setupcost, fmConfig)
 			const factory = { type, name, setupCost, recipes: new Map() }
-			for (const itemId in setupCost) {
+			for (const itemId of Array.from(setupCost.keys())) {
 				fmConfig.getItemForId(itemId)!.usedInFactoryCreations.push(factory)
 			}
 			return factory
