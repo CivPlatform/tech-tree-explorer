@@ -236,7 +236,15 @@ function ItemPage() {
 		return <div className="Page centerhv">Error: No such item: {material}</div>
 
 	const matName = itemInfos?.[material]?.name
-	const title = customName ? `${customName} (${matName})` : matName
+	const title = customName ? (
+		<>
+			{customName} ({matName} <ItemIcon id={material} />)
+		</>
+	) : (
+		<>
+			{matName} <ItemIcon id={material} />
+		</>
+	)
 
 	const madeInRecipes = items
 		.map((item) => item.madeInRecipes)

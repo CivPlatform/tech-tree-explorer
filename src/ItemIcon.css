@@ -1,6 +1,8 @@
 .ItemIcon {
 	height: 16px;
 	width: 16px;
+	position: relative;
+	top: 2px;
 	display: inline-block;
 	background-repeat: no-repeat;
 	background-position: center;
