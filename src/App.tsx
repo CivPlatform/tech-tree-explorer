@@ -67,20 +67,9 @@ function TopBar() {
 	return (
 		<div className="TopBar">
 			<div className="TopBar-Middle">
-				{/* XXX placeholders */}
 				<Link to="/factories">Factories</Link>
 				<Link to="/recipes">Recipes</Link>
 				<Link to="/items">Items</Link>
-
-				<Link to="/factories/Ore_Smelter">Ore Smelter</Link>
-				<Link to="/factories/Advanced_Ore_Smelter">Advanced Ore Smelter</Link>
-				<Link to="/factories/Compactor">Compactor</Link>
-
-				<Link to="/items/sand">Sand</Link>
-				<Link to="/items/sponge/Bastion">Bastion</Link>
-				<Link to="/items/diamond/Refractor">Refractor</Link>
-
-				<Link to="/recipes/wither_skull">Forge Nether Star</Link>
 			</div>
 		</div>
 	)
