@@ -18,7 +18,7 @@ const FMConfigContext = createContext<FMConfig>(undefined!)
 
 /** loads FM config, routes pages */
 export function App() {
-	const [configUrl, setConfigUrl] = useState(configUrlCivClassic)
+	const [configUrl] = useState(configUrlCivClassic)
 
 	const {
 		data: fmConfig,
@@ -64,7 +64,6 @@ const PagesSwitch = () => (
 )
 
 function TopBar() {
-	const fmConfig = useContext(FMConfigContext)
 	return (
 		<div className="TopBar">
 			<div className="TopBar-Middle">
