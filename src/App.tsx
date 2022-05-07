@@ -220,6 +220,14 @@ function RecipePage() {
 				<p>
 					Available in <FactoryListInline factories={recipe.factories} />
 				</p>
+				{'upgradesToFactory' in recipe && (
+					<p>
+						Upgrades to{' '}
+						<Link to={mkFacPath(recipe.upgradesToFactory)}>
+							{recipe.upgradesToFactory.name}
+						</Link>
+					</p>
+				)}
 				<p>
 					Runs for {recipe.runSec} seconds, consuming{' '}
 					{(recipe.runSec / recipe.fuelConsumeSec).toFixed(0)} fuel
