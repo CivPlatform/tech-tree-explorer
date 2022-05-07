@@ -215,7 +215,31 @@ function RecipePage() {
 	return (
 		<div className="Page">
 			<TopBar />
-			<div className="Page-Content">Recipe {id} TODO</div>
+			<div className="Page-Content">
+				<h3>{recipe.name}</h3>
+				<p>
+					Available in <FactoryListInline factories={recipe.factories} />
+				</p>
+				<p>
+					Runs for {recipe.runSec} seconds, consuming{' '}
+					{(recipe.runSec / recipe.fuelConsumeSec).toFixed(0)} fuel
+				</p>
+				{'health_gained' in recipe && (
+					<p>Heals factory by {recipe.health_gained}</p>
+				)}
+				{'input' in recipe && (
+					<>
+						<h4>Inputs</h4>
+						<ItemCountsTable itemCounts={recipe.input} />
+					</>
+				)}
+				{'output' in recipe && (
+					<>
+						<h4>Outputs</h4>
+						<ItemCountsTable itemCounts={recipe.output} />
+					</>
+				)}
+			</div>
 		</div>
 	)
 }
@@ -364,6 +388,10 @@ function ItemsPage() {
 				<h3>
 					{itemSearch ? 'Matching ' : ''}Items: {items.length}
 				</h3>
+				<p>
+					These items are created/consumed in factory recipes; other Vanilla
+					items are not listed.
+				</p>
 				{items.sort(keyByString((item) => item.id)).map((item) => (
 					<div key={item.id}>
 						<ItemLink item={item} />
