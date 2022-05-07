@@ -51,7 +51,7 @@ export class Item {
 		readonly customName?: string,
 		readonly lore?: string[]
 	) {
-		this.id = [material, customName || '', ...(lore || [])].join('\n').trim()
+		this.id = [customName || '', material, ...(lore || [])].join('\n').trim()
 	}
 
 	get isCompacted() {
