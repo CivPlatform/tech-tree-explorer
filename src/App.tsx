@@ -8,7 +8,7 @@ import {
 } from 'react-router-dom'
 import useSWRImmutable from 'swr/immutable'
 import './App.css'
-import { Factory, FMConfig, Item } from './FMConfig'
+import { Factory, FMConfig, Item, ItemCounts, Recipe } from './FMConfig'
 import { ItemIcon, useItemInfos } from './ItemIcon'
 
 const configUrlCivClassic =
@@ -127,18 +127,39 @@ function FactoryPage() {
 				{factory.type === 'FCC' ? (
 					<>
 						<h4>Setup Cost</h4>
+						<ItemCountsTable itemCounts={factory.setupCost} />
 					</>
 				) : factory.type === 'FCCUPGRADE' ? (
 					<>
 						<h4>Upgrade Recipe</h4>
 						<p>
-							Runs in:{' '}
+							Upgrade from:{' '}
 							<FactoryListInline factories={factory.upgradeRecipe.factories} />
 						</p>
+						<ItemCountsTable itemCounts={factory.upgradeRecipe.input} />
 					</>
 				) : (
 					`Error: Unknown factory type ${(factory as any).type}`
 				)}
+				<h4>Recipes</h4>
+				{Array.from(factory.recipes.values())
+					.sort(keyByString((r) => r.name))
+					.map((recipe) => {
+						const otherFactories = recipe.factories.filter((f) => f !== factory)
+						return (
+							<div key={recipe.id}>
+								<Link to={`/recipes/${recipe.id}`}>
+									<RecipeIcon recipe={recipe} /> {recipe.name}
+								</Link>
+								{otherFactories.length ? (
+									<>
+										{' '}
+										(also in <FactoryListInline factories={otherFactories} />)
+									</>
+								) : null}
+							</div>
+						)
+					})}
 			</div>
 		</div>
 	)
@@ -154,20 +175,12 @@ function FactoriesPage() {
 				{oValues(fmConfig.factories)
 					.sort(keyByString((fac) => fac.name))
 					.map((fac) => {
-						const iconRecipe = firstIt(fac.recipes.values())
-						const iconMaterial =
-							iconRecipe.type === 'PRODUCTION'
-								? fmConfig.getItemForId(firstIt(iconRecipe.output.keys()))!
-										.material
-								: iconRecipe.type === 'COMPACT' ||
-								  iconRecipe.type === 'DECOMPACT'
-								? 'chest'
-								: 'air'
+						const iconRecipe = getRepresentativeRecipeForFactory(fac)
 						return (
 							<div key={fac.name}>
 								<Link to={mkFacPath(fac)}>
-									<ItemIcon id={iconMaterial} /> {fac.name} ({fac.recipes.size}{' '}
-									recipes)
+									<RecipeIcon recipe={iconRecipe} /> {fac.name} (
+									{fac.recipes.size} recipes)
 								</Link>
 							</div>
 						)
@@ -176,6 +189,9 @@ function FactoriesPage() {
 		</div>
 	)
 }
+
+const getRepresentativeRecipeForFactory = (fac: Factory) =>
+	firstIt(fac.recipes.values())
 
 const FactoryListInline = (props: { factories: Factory[] }) => (
 	<>
@@ -213,16 +229,38 @@ function RecipesPage() {
 				<h3>Recipes: {Object.keys(fmConfig.recipes).length}</h3>
 				{oValues(fmConfig.recipes)
 					.sort(keyByString((r) => r.name))
-					.map((rec) => (
-						<div key={rec.id}>
-							<Link to={`/recipes/${rec.id}`}>{rec.name}</Link> (
-							<FactoryListInline factories={rec.factories} />)
-						</div>
-					))}
+					.map((recipe) => {
+						return (
+							<div key={recipe.id}>
+								<Link to={`/recipes/${recipe.id}`}>
+									<RecipeIcon recipe={recipe} /> {recipe.name}
+								</Link>{' '}
+								(<FactoryListInline factories={recipe.factories} />)
+							</div>
+						)
+					})}
 			</div>
 		</div>
 	)
 }
+
+function RecipeIcon({ recipe }: { recipe: Recipe }) {
+	const fmConfig = useContext(FMConfigContext)
+	const iconMaterial = getIconMaterialForRecipe(recipe, fmConfig)
+	return <ItemIcon id={iconMaterial} />
+}
+
+const getIconMaterialForRecipe = (recipe: Recipe, fmConfig: FMConfig): string =>
+	recipe.type === 'PRODUCTION'
+		? fmConfig.getItemForId(firstIt(recipe.output.keys()))!.material
+		: recipe.type === 'COMPACT' || recipe.type === 'DECOMPACT'
+		? 'chest'
+		: recipe.type === 'UPGRADE'
+		? getIconMaterialForRecipe(
+				getRepresentativeRecipeForFactory(recipe.upgradesToFactory),
+				fmConfig
+		  )
+		: 'air'
 
 function ItemPage() {
 	const { material = '', customName } = useParams()
@@ -267,23 +305,30 @@ function ItemPage() {
 			<div className="Page-Content">
 				<h3>{title}</h3>
 				<h4>Made in {madeInRecipes.length} Recipes</h4>
-				{madeInRecipes.map((rec) => (
-					<div key={rec.id}>
-						<Link to={`/recipes/${rec.id}`}>{rec.name}</Link> (
-						<FactoryListInline factories={rec.factories} />)
+				{madeInRecipes.map((recipe) => (
+					<div key={recipe.id}>
+						<Link to={`/recipes/${recipe.id}`}>
+							<RecipeIcon recipe={recipe} /> {recipe.name}
+						</Link>{' '}
+						(<FactoryListInline factories={recipe.factories} />)
 					</div>
 				))}
 				<h4>Used in {usedInRecipes.length} Recipes</h4>
-				{usedInRecipes.map((rec) => (
-					<div key={rec.id}>
-						<Link to={`/recipes/${rec.id}`}>{rec.name}</Link> (
-						<FactoryListInline factories={rec.factories} />)
+				{usedInRecipes.map((recipe) => (
+					<div key={recipe.id}>
+						<Link to={`/recipes/${recipe.id}`}>
+							<RecipeIcon recipe={recipe} /> {recipe.name}
+						</Link>{' '}
+						(<FactoryListInline factories={recipe.factories} />)
 					</div>
 				))}
 				<h4>Used in {usedInFactoryCreations.length} Factory set-ups</h4>
 				{usedInFactoryCreations.map((fac) => (
 					<div key={fac.name}>
-						<Link to={mkFacPath(fac)}>{fac.name}</Link>
+						<Link to={mkFacPath(fac)}>
+							<RecipeIcon recipe={getRepresentativeRecipeForFactory(fac)} />{' '}
+							{fac.name}
+						</Link>
 					</div>
 				))}
 			</div>
@@ -332,15 +377,37 @@ function ItemsPage() {
 function ItemLink(props: { item: Item }) {
 	const itemInfos = useItemInfos()
 	const { item } = props
-	// TODO nicer name: colors etc.
-	const name = itemInfos?.[item.material]?.name || item.id
+	const name = itemInfos?.[item.material]?.name || item.material
 	const linkPath = item.customName
 		? `/items/${item.material}/${item.customName}`
 		: `/items/${item.material}`
 	return (
 		<Link to={linkPath}>
-			<ItemIcon id={item.material} /> {name}
+			<ItemIcon id={item.material} />{' '}
+			{item.customName ? `"${item.customName}" (${name})` : name}{' '}
+			{item.lore ? (
+				<span style={{ color: 'purple' }}>{item.lore.join(' / ')}</span>
+			) : null}
 		</Link>
+	)
+}
+
+function ItemCountsTable({ itemCounts }: { itemCounts: ItemCounts }) {
+	const fmConfig = useContext(FMConfigContext)
+	return (
+		<table style={{ border: 0 }}>
+			{Array.from(itemCounts.entries()).map(([itemId, count]) => {
+				const item = fmConfig.getItemForId(itemId)!
+				return (
+					<tr>
+						<td align="right">{count}</td>
+						<td>
+							<ItemLink item={item} />
+						</td>
+					</tr>
+				)
+			})}
+		</table>
 	)
 }
 
