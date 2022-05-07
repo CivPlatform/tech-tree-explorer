@@ -6,7 +6,7 @@ export type Factory = {
 	recipes: Map<string, Recipe>
 } & (
 	| { type: 'FCC'; setupCost: ItemCounts }
-	| { type: 'FCCUPGRADE'; upgradeRecipe: Recipe }
+	| { type: 'FCCUPGRADE'; upgradeRecipe: UpgradeRecipe }
 )
 
 export type Recipe = {
