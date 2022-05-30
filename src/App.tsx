@@ -11,14 +11,21 @@ import './App.css'
 import { Factory, FMConfig, Item, ItemCounts, Recipe } from './FMConfig'
 import { ItemIcon, useItemInfos } from './ItemIcon'
 
-const configUrlCivClassic =
-	'https://raw.githubusercontent.com/CivClassic/AnsibleSetup/master/templates/public/plugins/FactoryMod/config.yml.j2'
+const configUrls = {
+	CivMC:
+		'https://raw.githubusercontent.com/CivMC/CivDocker/master/paper/config/plugins/FactoryMod/config.yml',
+	CivClassic:
+		'https://raw.githubusercontent.com/CivClassic/AnsibleSetup/master/templates/public/plugins/FactoryMod/config.yml.j2',
+	CivRealms:
+		'https://raw.githubusercontent.com/CivTopWolf/CC/master/config.yml',
+	test: '/config.yml',
+}
 
 const FMConfigContext = createContext<FMConfig>(undefined!)
 
 /** loads FM config, routes pages */
 export function App() {
-	const [configUrl] = useState(configUrlCivClassic)
+	const [configUrl] = useState(configUrls.CivClassic)
 
 	const {
 		data: fmConfig,
