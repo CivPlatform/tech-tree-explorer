@@ -13,7 +13,7 @@ import { ItemIcon, useItemInfos } from './ItemIcon'
 
 const configUrls = {
 	CivMC:
-		'https://raw.githubusercontent.com/CivMC/CivDocker/master/paper/config/plugins/FactoryMod/config.yml',
+		'https://raw.githubusercontent.com/CivMC/Civ/refs/heads/main/ansible/files/paper-config/plugins/FactoryMod/config.yml',
 	CivClassic:
 		'https://raw.githubusercontent.com/CivClassic/AnsibleSetup/master/templates/public/plugins/FactoryMod/config.yml.j2',
 	CivRealms:
