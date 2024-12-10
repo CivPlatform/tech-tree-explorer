@@ -219,6 +219,9 @@ function parseRecipe(
 		case 'PRINTINGPLATEJSON':
 		case 'PRINTBOOK':
 		case 'PRINTNOTE':
+		case 'HELIODOR_CREATE':
+		case 'HELIODOR_REFILL':
+		case 'HELIODOR_FINISH':
 			return { ...base, type: 'TODO' }
 		default:
 			throw new Error(`Unknown recipe type ${type}`)
@@ -239,13 +242,32 @@ function parseItemCounts(yaml: any, fmConfig: FMConfig): ItemCounts {
 	return items
 }
 
+const customItems: NodeJS.Dict<Item> = {
+	"backpack": new Item("ender_chest", "Backpack", ["Can be placed and used like an ender chest,","but drops its items when you die","Cannot contain certain PvP items"]),
+	"meteoric_iron_nugget": new Item("iron_nugget", "Meteoric Iron Nugget", ["A buried fragment from another world","Used for its unique magical properties"]),
+	"meteoric_iron_ingot": new Item("heavy_weighted_pressure_plate", "Meteoric Iron Ingot", ["A buried fragment from another world","Used for its unique magical properties"]),
+	"factory_upgrade": new Item("redstone_torch", "Factory Upgrade", ["Factories can be upgraded with one of two paths","Charcoal consumption: 1/4 -> 1/8 -> 1/12 -> 1/16","Factory speed: x2 -> x3 -> x4 -> x5"]),
+	"meteoric_iron_helmet": new Item("iron_helmet", "Meteoric Iron Helmet"),
+	"meteoric_iron_chestplate": new Item("iron_chestplate", "Meteoric Iron Chestplate"),
+	"meteoric_iron_leggings": new Item("iron_leggings", "Meteoric Iron Leggings"),
+	"meteoric_iron_boots": new Item("iron_boots", "Meteoric Iron Boots"),
+	"meteoric_iron_pickaxe_silk": new Item("iron_pickaxe", "Meteoric Iron Pickaxe", ["Instantly breaks deepslate and stone,","and otherwise equivalent to diamond"]),
+	"meteoric_iron_pickaxe": new Item("iron_pickaxe", "Meteoric Iron Pickaxe", ["Instantly breaks deepslate and stone,","and otherwise equivalent to diamond"]),
+	"meteoric_iron_axe_silk": new Item("iron_axe", "Meteoric Iron Axe", ["Deals 2.5x reinforcement damage on wood products","Deals 2x reinforcement damage on iron and copper products"]),
+	"meteoric_iron_axe": new Item("iron_axe", "Meteoric Iron Axe", ["Deals 2.5x reinforcement damage on wood products","Deals 2x reinforcement damage on iron and copper products"]),
+	"meteoric_iron_sword_knockback": new Item("iron_sword", "Meteoric Iron Sword", ["Deals 1 second of Slowness I on hit","Instantly breaks cobwebs"]),
+	"meteoric_iron_sword_knockback1": new Item("iron_sword", "Meteoric Iron Sword", ["Deals 1 second of Slowness I on hit","Instantly breaks cobwebs"]),
+	"meteoric_iron_sword": new Item("iron_sword", "Meteoric Iron Sword", ["Deals 1 second of Slowness I on hit","Instantly breaks cobwebs"])
+}
+
 function parseItem(yaml: any): Item {
 	if (typeof yaml !== 'object') {
 		throw new Error(`Invalid item: '${yaml}'`)
 	}
-	const material = checkStr(yaml.material).toLowerCase()
-	const customName = yaml.name ? checkStr(yaml.name) : undefined
-	const lore = yaml.lore
+	if (yaml["custom-key"]) return customItems[yaml["custom-key"]]!
+	const material = checkStr(yaml.type).toLowerCase()
+	const customName = yaml.meta?.["display-name"] ? checkStr(yaml.meta["display-name"]) : undefined
+	const lore = yaml.meta?.lore
 	return new Item(material, customName, lore)
 }
 
